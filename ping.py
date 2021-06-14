@@ -15,7 +15,6 @@ ERROR_DESCR = {
            ' users or processes with administrator rights.'
 }
 
-
 class Ping():
     
     def __init__(self, target_host, count=4, timeout=2):
@@ -24,10 +23,11 @@ class Ping():
         self.timeout = timeout
 
     def ping(self):
-        print(f'Ping {self.target_host}')
+        target_ip = socket.gethostbyname(self.target_host)
+        print(f'Ping {self.target_host} [{target_ip}]')
         for i in range(self.count):
             try:
-                delay = self.ping_once()
+                ip_header, delay = self.ping_once()
             # Error raised for address-related errors by getaddrinfo() and getnameinfo()
             except socket.gaierror as e:
                 print(f'Failed \nsocket error: {e[1]}')
@@ -36,13 +36,14 @@ class Ping():
             if (delay == None):
                 print(f'Failed \nTimeout within {self.timeout} seconds')
             else:
+                ttl = ip_header['ttl']
                 delay = round(delay * 1000.0, 4)
-                print(f'get ping in {delay} milliseconds.')
+                print(f'Reply from {target_ip}: bytes= time={round(delay)}ms TTL={ttl}')
 
     # Sends one ping to the given target host
     def ping_once(self):
         try:
-            my_socket = socket.socket(
+            current_socket = socket.socket(
                 socket.AF_INET, socket.SOCK_RAW, ICMP_CODE)
         except socket.error as e:
             # ERROR_DESCR[1] or ERROR_DESCR[10013]: Not superuser, operation not allowed
@@ -59,15 +60,17 @@ class Ping():
         # we have to sure that our packet id is not greater than that.
         packet_id = os.getpid() & 0xffff
         
-        self.send_ping(my_socket, packet_id)
-        delay = self.receive_ping(my_socket, packet_id, self.timeout)
-        my_socket.close
+        self.send_ping(current_socket, packet_id)
+        ip_header, delay = self.receive_ping(
+            current_socket, packet_id, self.timeout)
+        current_socket.close
 
-        return delay
+        return ip_header, delay
 
     # Send ping to targe host
-    def send_ping(self, my_socket, packet_id):
+    def send_ping(self, current_socket, packet_id):
         target_addr = socket.gethostbyname(self.target_host)
+        
         tmp_checksum = 0
 
         # Create header with 0 checksum
@@ -85,16 +88,18 @@ class Ping():
 
         packet = header + data
         while packet:
-            sent = my_socket.sendto(packet, (target_addr, 1))
+            sent = current_socket.sendto(packet, (target_addr, 1))
             packet = packet[sent:]
+        
+        return target_addr
 
     # Reveive the ping from the socket
-    def receive_ping(self, my_socket, packet_id, timeout):
+    def receive_ping(self, current_socket, packet_id, timeout):
         time_left = timeout
         
         while True:
             start_time = time.time()
-            ready = select.select([my_socket], [], [], time_left)
+            ready = select.select([current_socket], [], [], time_left)
             time_spent = time.time() - start_time
 
             # Timeout
@@ -102,20 +107,47 @@ class Ping():
                 return
             
             time_received = time.time()
-            recv_packet, addr = my_socket.recvfrom(1024)
-            icmp_header = recv_packet[20:28]
-            type, code, checksum, p_id, sequence = struct.unpack(
-                'bbHHh', icmp_header)
+            recv_packet, addr = current_socket.recvfrom(1024)
             
-            if (p_id == packet_id):
+            icmp_header = self.header2dict(
+                names=[
+                    'type', 'code', 'type',
+                    'packet_id', 'seq_number'
+                ],
+                struct_format='bbHHh',
+                data=recv_packet[20:28]
+            )
+
+            if icmp_header['packet_id'] == packet_id:
                 bytes_in_double = struct.calcsize('d')
                 time_sent = struct.unpack('d', recv_packet[28:28+bytes_in_double])[0]
-                return time_received - time_sent
-            
+                
+                ip_header = self.header2dict(
+                    names=[
+                        'version', 'type', 'length',
+                        'id', 'flags', 'ttl', 'protocol',
+                        'checksum', 'src_ip', 'dest_ip'
+                    ],
+                    struct_format='!BBHHHBBHII',
+                    data=recv_packet[:20]
+                )
+                # Converts an IP address, which is in 32-bit packed format
+                # to the popular human readable dotted-quad string format.
+                # !: network (= big-endian), I: unsigned int
+                # ip = socket.inet_ntoa(struct.pack("!I", ip_header["src_ip"]))
+                # print(ip)
+
+                return ip_header, (time_received - time_sent)
+
             time_left = time_left - time_spent
 
             if time_left <= 0:
                 return
+
+    # Unpack the raw received IP and ICMP header informations to a dict
+    def header2dict(self, names, struct_format, data):
+        unpacked_data = struct.unpack(struct_format, data)
+        return dict(zip(names, unpacked_data))
 
 
     def checksum(self, source_string):
