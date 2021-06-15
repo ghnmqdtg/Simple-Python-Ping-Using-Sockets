@@ -4,6 +4,7 @@ import time
 import sys
 import os
 import click
+from statistics import mean
 
 
 class Ping():
@@ -86,10 +87,32 @@ class Ping():
             if self.count == 1:
                 # Condition ping: Host up or down
                 exit(result)
+            if (result != 1):
+                info_dict['Received'] = info_dict['Received'] + 1
+            else:
+                info_dict['Lost'] = info_dict['Lost'] + 1
 
             time.sleep(self.interval)
 
         sock.close()
+
+        info_dict['Sent'] = self.count
+        
+        host = info_dict['Host']
+        sent = info_dict['Sent']
+        received = info_dict['Received']
+        lost = info_dict['Lost']
+        percent = (lost / sent) * 100
+        min_time = min(info_dict['Time'])
+        max_time = max(info_dict['Time'])
+        avg_time = round(mean(info_dict['Time']), 2)
+
+        # Print the statistics
+        print(f'\nPing statistics for {host}')
+        print(f'\tPackets: Sent = {sent}, Received = {received}, Lost = {lost} ({percent}% loss)')
+        print('Approximate round trip times in milli-seconds:')
+        print(
+            f'\tMinimum = {min_time}ms, Maximum = {max_time}ms, Average = {avg_time}ms')
 
     def send_ping(self, sock, packet, data_len, timestamp_send, icmp_id):
         ''' Get target IP address '''
@@ -165,6 +188,8 @@ class Ping():
                     host = host[0]
                     size = packet_len
                     time_spent = (timestamp_recv - timestamp_send) * 1000
+                    info_dict['Host'] = host
+                    info_dict['Time'].append(round(time_spent, 2))
                     print(f'Pong: {pkt}, {host}, {size}, {time_spent:0.2f}')
                 else:
                     if self.count == 1:
@@ -174,6 +199,8 @@ class Ping():
                         host = host[0]
                         seq = packet_header[4]
                         time_spent = (timestamp_recv - timestamp_send) * 1000
+                        info_dict['Host'] = host
+                        info_dict['Time'].append(round(time_spent, 2))
                         print(
                             f'{size} bytes from {host}: seq={seq} ttl={self.ttl} time={time_spent:0.2f} ms')
                 
@@ -218,7 +245,11 @@ def main(ctx, target_host, count, timeout, ttl, interval, ipv6, verbose, sequenc
                    interval, ipv6, verbose).ping()
 
 if __name__ == '__main__':
-    # target = '127.0.0.1'
-    # target = 'www.google.com'
-    # Ping(target, ipv6=False, count=2, verbose=False).ping()
+    info_dict = {
+        "Host": "",
+        "Sent": 0,
+        "Received": 0,
+        "Lost": 0,
+        "Time": []
+    }
     main()
