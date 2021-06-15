@@ -238,9 +238,9 @@ class Ping():
 @click.option('-t', 'timeout', default=2, help='Timeout in milliseconds to wait for each reply.')
 @click.option('-m', 'ttl', default=64, help='Time To Live.')
 @click.option('-i', 'interval', default=1, help='Interval between two requests in seconds. Default is 1.')
-@click.option('-6', 'ipv6', default=False, help='Use IPv6 protocol instead of IPv4.')
-@click.option('-v', 'verbose', default=False, help='Verbose the info.')
-@click.option('-s', 'statistics', default=True, help='Show the statistics.')
+@click.option('-6', 'ipv6', default=False, help='Use IPv6 protocol instead of IPv4. Default is False.')
+@click.option('-v', 'verbose', default=False, help='Verbose the info. Default is False.')
+@click.option('-s', 'statistics', default=True, help='Show the statistics. Default is True.')
 @click.pass_context
 def main(ctx, target_host, count, timeout, ttl, interval, ipv6, verbose, statistics, sequence=0):
     ctx.obj = Ping(target_host, count, timeout, ttl, interval,
