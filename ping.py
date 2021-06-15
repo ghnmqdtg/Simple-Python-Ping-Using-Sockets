@@ -3,11 +3,12 @@ import struct
 import time
 import sys
 import os
+import click
 
 
 class Ping():
     
-    def __init__(self, target_host, count=4, timeout=2, ttl=64, interval=1, ipv6=False, verbose=True, sequence=0):
+    def __init__(self, target_host, count, timeout, ttl, interval, ipv6, verbose, sequence=0):
         self.target_host = target_host
         self.count = count
         self.timeout = timeout
@@ -101,7 +102,6 @@ class Ping():
             addr_info = socket.getaddrinfo(self.target_host, 1)[0]
             # addr_info[0].name: address family, AF_INET or AF_INET6
             # addr_info[4]: target ip address
-            print(addr_info)
             if addr_info[0].name == self.addr_family:
                 target_addr = addr_info[4]
         # It raises an exception if the address is unable to get
@@ -204,7 +204,21 @@ class Ping():
         return checksum
 
 
+@click.command()
+@click.argument('target_host', required=True)
+@click.option('-c', 'count', default=4, help='Number of echo requests to send.')
+@click.option('-t', 'timeout', default=2, help='Timeout in milliseconds to wait for each reply.')
+@click.option('-m', 'ttl', default=64, help='Time To Live.')
+@click.option('-i', 'interval', default=1, help='Interval between two requests in seconds. Default is 1.')
+@click.option('-6', 'ipv6', default=False, help='Use IPv6 protocol instead of IPv4.')
+@click.option('-v', 'verbose', default=False, help='Verbose the info.')
+@click.pass_context
+def main(ctx, target_host, count, timeout, ttl, interval, ipv6, verbose, sequence=0):
+    ctx.obj = Ping(target_host, count, timeout, ttl,
+                   interval, ipv6, verbose).ping()
+
 if __name__ == '__main__':
     # target = '127.0.0.1'
-    target = 'www.google.com'
-    Ping(target, ipv6=False, count=2, verbose=False).ping()
+    # target = 'www.google.com'
+    # Ping(target, ipv6=False, count=2, verbose=False).ping()
+    main()
