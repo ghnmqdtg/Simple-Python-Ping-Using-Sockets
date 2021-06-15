@@ -43,9 +43,9 @@ Approximate round trip times in milli-seconds:
 ```
 
 ### Response Table
-|Packet Size|Dest IP|Sequence|TTL|Latency|
-| --- | --- | --- | --- | --- |
-|228 bytes| 216.58.200.36|0|64|39.56 ms|
+| Packet Size |    Dest IP    | Sequence | TTL | Latency  |
+|:-----------:|:-------------:|:--------:|:---:|:--------:|
+|  228 bytes  | 216.58.200.36 |    0     | 64  | 39.56 ms |
 
 ## Requirements
 I develop it in `Python 3.8.8 64-bit` on windows and use the library `click` to implement the arguments parsing.
