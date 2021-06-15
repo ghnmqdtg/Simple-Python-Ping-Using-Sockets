@@ -9,7 +9,7 @@ from statistics import mean
 
 class Ping():
     
-    def __init__(self, target_host, count, timeout, ttl, interval, ipv6, verbose, sequence=0):
+    def __init__(self, target_host, count, timeout, ttl, interval, ipv6, verbose, statistics, sequence=0):
         self.target_host = target_host
         self.count = count
         self.timeout = timeout
@@ -18,6 +18,7 @@ class Ping():
         self.ipv6 = ipv6
         self.verbose = verbose
         self.sequence = sequence
+        self.statistics = statistics
 
     def ping(self):
         ''' Packet header setting '''
@@ -98,21 +99,22 @@ class Ping():
 
         info_dict['Sent'] = self.count
         
-        host = info_dict['Host']
-        sent = info_dict['Sent']
-        received = info_dict['Received']
-        lost = info_dict['Lost']
-        percent = (lost / sent) * 100
-        min_time = min(info_dict['Time'])
-        max_time = max(info_dict['Time'])
-        avg_time = round(mean(info_dict['Time']), 2)
+        if (self.statistics):
+            host = info_dict['Host']
+            sent = info_dict['Sent']
+            received = info_dict['Received']
+            lost = info_dict['Lost']
+            percent = (lost / sent) * 100
+            min_time = min(info_dict['Time'])
+            max_time = max(info_dict['Time'])
+            avg_time = round(mean(info_dict['Time']), 2)
 
-        # Print the statistics
-        print(f'\nPing statistics for {host}')
-        print(f'\tPackets: Sent = {sent}, Received = {received}, Lost = {lost} ({percent}% loss)')
-        print('Approximate round trip times in milli-seconds:')
-        print(
-            f'\tMinimum = {min_time}ms, Maximum = {max_time}ms, Average = {avg_time}ms')
+            # Print the statistics
+            print(f'\nPing statistics for {host}')
+            print(f'\tPackets: Sent = {sent}, Received = {received}, Lost = {lost} ({percent}% loss)')
+            print('Approximate round trip times in milli-seconds:')
+            print(
+                f'\tMinimum = {min_time}ms, Maximum = {max_time}ms, Average = {avg_time}ms')
 
     def send_ping(self, sock, packet, data_len, timestamp_send, icmp_id):
         ''' Get target IP address '''
@@ -210,7 +212,6 @@ class Ping():
                     print('Host is down')
                     return 1
             
-
     def checksum(self, source_string):
         sum = 0
         max_count = (int(len(source_string) / 2)) * 2
@@ -233,16 +234,17 @@ class Ping():
 
 @click.command()
 @click.argument('target_host', required=True)
-@click.option('-c', 'count', default=4, help='Number of echo requests to send.')
+@click.option('-c', 'count', default=4, help='Number of echo requests to send. Default is 4.')
 @click.option('-t', 'timeout', default=2, help='Timeout in milliseconds to wait for each reply.')
 @click.option('-m', 'ttl', default=64, help='Time To Live.')
 @click.option('-i', 'interval', default=1, help='Interval between two requests in seconds. Default is 1.')
 @click.option('-6', 'ipv6', default=False, help='Use IPv6 protocol instead of IPv4.')
 @click.option('-v', 'verbose', default=False, help='Verbose the info.')
+@click.option('-s', 'statistics', default=True, help='Show the statistics.')
 @click.pass_context
-def main(ctx, target_host, count, timeout, ttl, interval, ipv6, verbose, sequence=0):
-    ctx.obj = Ping(target_host, count, timeout, ttl,
-                   interval, ipv6, verbose).ping()
+def main(ctx, target_host, count, timeout, ttl, interval, ipv6, verbose, statistics, sequence=0):
+    ctx.obj = Ping(target_host, count, timeout, ttl, interval,
+                   ipv6, verbose, statistics, sequence).ping()
 
 if __name__ == '__main__':
     info_dict = {
